@@ -1,0 +1,20 @@
+{
+  "synthetic": {
+    "date": "date",
+    "orders": "orders",
+    "avg_order_value": "avg_order_value",
+    "revenue": "revenue"
+  },
+  "woocommerce": {
+    "date": "date",
+    "orders": "orders",
+    "avg_order_value": "avg_order_value",
+    "revenue": "revenue"
+  },
+  "shopify": {
+    "date": "date",
+    "orders": "metrics.orders_count",
+    "avg_order_value": "metrics.aov",
+    "revenue": "metrics.total_sales"
+  }
+}
