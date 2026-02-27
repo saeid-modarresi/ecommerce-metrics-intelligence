@@ -1,0 +1,138 @@
+{
+  "source": {
+    "platform": "synthetic",
+    "store_id": "wizban-enterprise-demo",
+    "timezone": "America/St_Johns",
+    "currency": "CAD",
+    "generated_at": "2026-02-27T12:00:00Z"
+  },
+  "schema": [
+    "date",
+    "orders",
+    "avg_order_value",
+    "revenue",
+    "sessions",
+    "conversion_rate",
+    "refunds",
+    "discount_amount"
+  ],
+  "rows": 10,
+  "data": [
+    {
+      "date": "2026-02-01",
+      "orders": 210,
+      "avg_order_value": 58.2,
+      "revenue": 12222.0,
+      "sessions": 4300,
+      "conversion_rate": 0.0488,
+      "refunds": 120.50,
+      "discount_amount": 350,
+      "dimensions": {
+        "channel": "organic",
+        "country": "CA",
+        "currency": "CAD"
+      },
+      "meta": {
+        "raw_fields": {
+          "shopify_total_sales": 12222.0,
+          "shopify_orders_count": 210
+        }
+      }
+    },
+    {
+      "date": "2026-02-02",
+      "orders": "198",
+      "avg_order_value": null,
+      "revenue": "11,350.40",
+      "sessions": "4200",
+      "conversion_rate": "0.047",
+      "refunds": 0,
+      "discount_amount": 410,
+      "dimensions": {
+        "channel": "paid",
+        "country": "US",
+        "currency": "USD"
+      }
+    },
+    {
+      "date": "2026-02-03",
+      "orders": -25,
+      "avg_order_value": 60.1,
+      "revenue": 0,
+      "sessions": 3900,
+      "conversion_rate": 0.0,
+      "refunds": 600,
+      "discount_amount": 0
+    },
+    {
+      "date": "2026-02-04",
+      "orders": 230,
+      "avg_order_value": 61.2,
+      "revenue": 14076,
+      "sessions": 4700,
+      "conversion_rate": 0.0489,
+      "refunds": 80,
+      "discount_amount": 500
+    },
+    {
+      "date": "2026-02-05",
+      "orders": 220,
+      "avg_order_value": 59.9,
+      "revenue": 13178,
+      "sessions": 4500,
+      "conversion_rate": 0.0488,
+      "refunds": 150,
+      "discount_amount": 250
+    },
+    {
+      "date": "2026-02-06",
+      "orders": 410,
+      "avg_order_value": 120,
+      "revenue": 49200,
+      "sessions": 8000,
+      "conversion_rate": 0.051,
+      "refunds": 300,
+      "discount_amount": 1200
+    },
+    {
+      "date": "2026-02-07",
+      "orders": 205,
+      "avg_order_value": 57.5,
+      "revenue": 11787.5,
+      "sessions": 4100,
+      "conversion_rate": 0.05,
+      "refunds": 0,
+      "discount_amount": 0
+    },
+    {
+      "date": "2026-02-08",
+      "orders": 215,
+      "avg_order_value": 58,
+      "revenue": 12470,
+      "sessions": 4300,
+      "conversion_rate": 0.049,
+      "refunds": 100,
+      "discount_amount": 200
+    },
+    {
+      "date": "2026-02-09",
+      "orders": 218,
+      "avg_order_value": 59,
+      "revenue": 12862,
+      "sessions": 4400,
+      "conversion_rate": 0.0495,
+      "refunds": 90,
+      "discount_amount": 180
+    },
+    {
+      "date": "2026-02-09",
+      "orders": 218,
+      "avg_order_value": 59,
+      "revenue": 12862,
+      "sessions": 4400,
+      "conversion_rate": 0.0495,
+      "refunds": 90,
+      "discount_amount": 180
+    }
+  ]
+}
