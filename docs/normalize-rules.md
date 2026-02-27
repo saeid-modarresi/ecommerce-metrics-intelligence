@@ -8,7 +8,7 @@ Normalization ensures deterministic, predictable output.
 The raw object must:
 - Be valid JSON
 - Follow the EMI Raw Data Contract
-- Contain a top-level data array
+- Contain a top-level `data` array
 - Include at minimum the required fields:
   - date
   - orders
@@ -41,9 +41,9 @@ The following fields must be numeric:
 - avg_order_value → float
 - revenue → float
 - If values are strings (e.g. "210", "12,222.50"):
-- Commas are removed
-- Strings are trimmed
-- Safely converted to numeric types
+  - Commas are removed
+  - Strings are trimmed
+  - Safely converted to numeric types
 - If conversion fails → value defaults to 0
 
 ### 3.3 Null and Missing Values
@@ -68,7 +68,6 @@ This ensures deterministic and consistent normalization behavior.
 
 ### 5. Deterministic Output
 Normalization must be:
-
 - Idempotent
 - Deterministic
 - Stateless
@@ -78,7 +77,7 @@ Given the same input object, the output must always be identical.
 ### 6. Failure Strategy
 If the raw object:
 - Is not valid JSON
-- Does not contain data
+- Does not contain `data`
 - Has zero valid normalized rows
 
 The Normalize Lambda:

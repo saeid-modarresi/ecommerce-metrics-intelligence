@@ -49,6 +49,41 @@ SNS Alerts + CloudWatch Metrics
 
 6- SNS + CloudWatch: Sends anomaly alerts and publishes metrics like AnomalyCount for dashboards/alarms.
 
+## Normalize Module Structure
+```
+index.py                      # AWS Lambda entrypoint (event parsing + call orchestrator)
+normalize/coerce.py           # Type coercion utilities (string→number, currency cleanup, null→0, clamp negatives)
+normalize/validate.py         # Payload & record validation (strict schema, required fields, date format checks)
+normalize/transform.py        # Transform raw rows into strict normalized records
+normalize/dedupe.py           # Duplicate resolution by date (keep highest revenue, count removed rows)
+normalize/s3_io.py            # S3 read/write helpers (get_object, head_object for idempotency, put_object)
+normalize/output.py           # Deterministic output key builder + NDJSON serializer
+normalize/metrics.py          # CloudWatch EMF metrics emitter (files processed, rows written, drops, dups, duration)
+normalize/orchestrator.py     # Main pipeline coordinator (read → validate → transform → dedupe → write → metrics)
+normalize/normalize_core.py   # Backward-compatibility wrapper for legacy handler usage
+```
+## EMI Production –Adding More Controls Steps
+<strong>1- Idempotency (Duplicate-Safe Processing)</strong> <br>
+Amazon S3 and Lambda can deliver duplicate events due to retries or internal failures.
+This means the same raw file might trigger Normalize more than once.<br>
+Ensure that each raw file is processed exactly once, even if the event is delivered multiple times.
+
+
+<strong>2- Failure Handling (No Silent Data Loss)</strong> <br>
+Lambda async invocations retry automatically on failure.
+After retries are exhausted, the event can be lost unless we configure a failure destination.<br>
+Capture failed events (via Lambda Destinations or DLQ) so they can be investigated or reprocessed safely.
+
+<strong>3- Observability & Metrics (Operational Visibility)</strong> <br>
+Logs are useful for debugging, but they are not operational monitoring.
+- Records received
+- Records written
+- Dropped/invalid rows
+- Duplicates removed
+- Processing time
+
+
+
 
 ## Detection Method
 <strong>Mahalanobis Distance</strong>
@@ -71,15 +106,18 @@ Advantages:
 - Easy to interpret and debug
 - Suitable for serverless execution
 
-## Future Upgrade: Isolation Forest
+## Future Upgrade: Mapping + Isolation Forest
 
-While Mahalanobis works well for normally distributed and linearly correlated data, it assumes a Gaussian distribution and may struggle with complex, non-linear patterns.
+<strong>1- Mapping (multi-platform support)</strong><br>
+Reserved for future multi-platform field mapping support (Shopify / WooCommerce / PrestaShop), enabling raw field aliases to map into the strict EMI schema without changing core logic.
 
-For more advanced anomaly detection, EMI is designed to support Isolation Forest, a machine learning–based algorithm that:
+<strong>2- Isolation Forest (advanced anomaly detection)</strong><br>
+While Mahalanobis works well for linearly correlated features under near-Gaussian assumptions, it can struggle with complex, non-linear patterns common in real eCommerce behavior.
 
+To support more robust detection, EMI is designed to upgrade to Isolation Forest, which:
 - Detects anomalies without distribution assumptions
-- Handles non-linear relationships between features
-- Works better with high-dimensional data
-- Is more robust to irregular and complex behavioral shifts
+- Captures non-linear relationships between features
+- Scales better to higher-dimensional feature sets
+- Is more resilient to irregular behavioral shifts and mixed data conditions
 
-Isolation Forest can improve detection performance in real-world eCommerce environments where behavior patterns are not strictly Gaussian.
+This upgrade can improve detection performance in real-world eCommerce environments where patterns are not strictly Gaussian.
