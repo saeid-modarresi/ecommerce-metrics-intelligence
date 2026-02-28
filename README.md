@@ -27,14 +27,7 @@ The goal is to detect meaningful anomalies while reducing noise and false positi
 ## Architecture (Flow)
 EMI is an event-driven, serverless pipeline on AWS:
 
-Hosted Raw JSON (API/File) → <br>
-Lambda Ingest →  <br>
-S3 (raw/) →  <br>
-Lambda Normalize →  <br>
-S3 (normalized/) →  <br>
-Lambda Detect →  <br>
-S3 (processed/) → <br>
-SNS Alerts + CloudWatch Metrics
+![EMI Architecture](aws/assets/emi-architecture.png)
 
 ## Components
 1- Raw Source (Hosted JSON/API): Synthetic eCommerce metrics exposed via URL.
@@ -81,8 +74,6 @@ Logs are useful for debugging, but they are not operational monitoring.
 - Dropped/invalid rows
 - Duplicates removed
 - Processing time
-
-
 
 
 ## Detection Method

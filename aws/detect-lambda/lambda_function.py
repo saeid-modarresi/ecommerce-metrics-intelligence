@@ -1,6 +1,5 @@
 import json
 import os
-import time
 import urllib.parse
 from datetime import datetime, timezone
 
@@ -60,6 +59,58 @@ def parse_ndjson(text: str) -> list:
         except Exception:
             continue
     return rows
+
+
+def build_presentation_output(
+    *,
+    source_bucket: str,
+    source_key: str,
+    processed_key: str,
+    window_size: int,
+    threshold: float,
+    anomaly_count: int,
+    anomalies: list,
+    note: str | None = None,
+) -> dict:
+    # ----------------------------------------
+    # Presentation-friendly output (for slides/demo)
+    # ----------------------------------------
+    date_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if note:
+        message = f"No anomalies detected ({note})."
+        status = "OK"
+    elif anomaly_count == 0:
+        message = "No anomalies detected."
+        status = "OK"
+    else:
+        message = f"{anomaly_count} anomalies detected."
+        status = "ALERT"
+
+    return {
+        "summary": {
+            "status": status,
+            "message": message,
+            "anomaly_count": anomaly_count,
+        },
+        "context": {
+            "date_utc": date_utc,
+            "rolling_window": window_size,
+            "threshold": threshold,
+        },
+        "artifacts": {
+            "normalized": f"s3://{source_bucket}/{source_key}",
+            "processed": f"s3://{source_bucket}/{processed_key}",
+        },
+        "anomalies": anomalies,
+        # Keep technical details (if someone asks)
+        "debug": {
+            "source_bucket": source_bucket,
+            "source_key": source_key,
+            "processed_key": processed_key,
+            "note": note,
+        },
+    }
 
 
 # -------- Mahalanobis (3 features) --------
@@ -122,9 +173,9 @@ def _inv_3x3(m: list) -> list:
     if abs(det) < 1e-12:
         bump = 1e-3
         m2 = [
-            [m[0][0] + bump, m[0][1],       m[0][2]],
+            [m[0][0] + bump, m[0][1],        m[0][2]],
             [m[1][0],        m[1][1] + bump, m[1][2]],
-            [m[2][0],        m[2][1],       m[2][2] + bump],
+            [m[2][0],        m[2][1],        m[2][2] + bump],
         ]
         return _inv_3x3(m2)
 
@@ -191,50 +242,93 @@ def detect(rows: list) -> dict:
         if d2 >= THRESHOLD:
             anomalies.append({"date": cur["date"], "d2": d2, "record": cur})
 
-    return {"anomaly_count": len(anomalies), "anomalies": anomalies}
+    return {"anomaly_count": len(anomalies), "anomalies": anomalies, "note": None}
+
+
+def _extract_bucket_key_from_event(event: dict) -> tuple[str | None, str | None]:
+    """
+    Supports:
+    1) S3 Event input: event["Records"][0]["s3"]["bucket"]["name"] + key
+    2) Step Functions input: { "bucket": "...", "key": "normalized/...ndjson" }
+       or { "source_bucket": "...", "source_key": "normalized/...ndjson" }
+       or output from previous step { "bucket": "...", "key": "...", ... }
+    """
+    records = event.get("Records", [])
+    if records:
+        rec = records[0]
+        s3_info = rec.get("s3", {})
+        bucket = (s3_info.get("bucket", {}) or {}).get("name")
+        key = (s3_info.get("object", {}) or {}).get("key")
+        if key:
+            key = urllib.parse.unquote_plus(key)
+        return bucket, key
+
+    bucket = event.get("bucket") or event.get("source_bucket")
+    key = event.get("key") or event.get("source_key")
+    if isinstance(key, str):
+        key = urllib.parse.unquote_plus(key)
+    return bucket, key
 
 
 def handler(event, context):
     print("Detect Lambda started")
     print("Event:", json.dumps(event))
 
-    records = event.get("Records", [])
-    if not records:
-        return {"statusCode": 200, "body": "No records"}
+    bucket, key = _extract_bucket_key_from_event(event)
 
-    for rec in records:
-        s3_info = rec.get("s3", {})
-        bucket = (s3_info.get("bucket", {}) or {}).get("name")
-        key = (s3_info.get("object", {}) or {}).get("key")
-        if not bucket or not key:
-            continue
-
-        key = urllib.parse.unquote_plus(key)
-
-        if not key.startswith(NORMALIZED_PREFIX) or not key.lower().endswith(".ndjson"):
-            continue
-
-        processed_key = build_processed_key(key)
-
-        # Idempotency for detect output
-        if object_exists(bucket, processed_key):
-            print(f"Already processed. Skipping. output=s3://{bucket}/{processed_key}")
-            continue
-
-        ndjson_text = read_text(bucket, key)
-        rows = parse_ndjson(ndjson_text)
-        result = detect(rows)
-
-        output = {
-            "source_bucket": bucket,
-            "source_key": key,
-            "processed_key": processed_key,
-            "window_size": WINDOW_SIZE,
-            "threshold": THRESHOLD,
-            **result,
+    if not bucket or not key:
+        # For Step Functions, return a clean output (not statusCode)
+        return {
+            "summary": {"status": "SKIPPED", "message": "No bucket/key provided.", "anomaly_count": 0},
+            "context": {"date_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "rolling_window": WINDOW_SIZE, "threshold": THRESHOLD},
+            "artifacts": {},
+            "anomalies": [],
+            "debug": {"note": "No bucket/key in event"},
         }
 
-        write_json(bucket, processed_key, output)
-        print(f"Wrote processed output: s3://{bucket}/{processed_key} anomalies={result.get('anomaly_count', 0)}")
+    # Only handle normalized NDJSON
+    if not key.startswith(NORMALIZED_PREFIX) or not key.lower().endswith(".ndjson"):
+        return {
+            "summary": {"status": "SKIPPED", "message": "Input is not a normalized .ndjson file.", "anomaly_count": 0},
+            "context": {"date_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d"), "rolling_window": WINDOW_SIZE, "threshold": THRESHOLD},
+            "artifacts": {"normalized": f"s3://{bucket}/{key}"},
+            "anomalies": [],
+            "debug": {"note": "Key not matching normalized/*.ndjson"},
+        }
 
-    return {"statusCode": 200, "body": "OK"}
+    processed_key = build_processed_key(key)
+
+    # Idempotency
+    if object_exists(bucket, processed_key):
+        print(f"Already processed. Skipping. output=s3://{bucket}/{processed_key}")
+        return build_presentation_output(
+            source_bucket=bucket,
+            source_key=key,
+            processed_key=processed_key,
+            window_size=WINDOW_SIZE,
+            threshold=THRESHOLD,
+            anomaly_count=0,
+            anomalies=[],
+            note="Already processed (idempotent skip)",
+        )
+
+    ndjson_text = read_text(bucket, key)
+    rows = parse_ndjson(ndjson_text)
+    result = detect(rows)
+
+    output = build_presentation_output(
+        source_bucket=bucket,
+        source_key=key,
+        processed_key=processed_key,
+        window_size=WINDOW_SIZE,
+        threshold=THRESHOLD,
+        anomaly_count=int(result.get("anomaly_count", 0) or 0),
+        anomalies=result.get("anomalies", []) or [],
+        note=result.get("note"),
+    )
+
+    write_json(bucket, processed_key, output)
+    print(f"Wrote processed output: s3://{bucket}/{processed_key} anomalies={output['summary']['anomaly_count']}")
+
+    # For Step Functions this becomes the final execution output (nice for demo)
+    return output
